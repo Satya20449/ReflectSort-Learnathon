@@ -1,0 +1,27 @@
+{
+  "data_source": "SIMULATED",
+  "accuracy": 1.0,
+  "macro_f1": 1.0,
+  "features": [
+    "sample_LDR",
+    "ambient_LDR",
+    "reflectance_ratio"
+  ],
+  "classes": [
+    "Dark",
+    "Light",
+    "Medium"
+  ],
+  "training_min": {
+    "sample_LDR": 181.0,
+    "ambient_LDR": 130.0,
+    "reflectance_ratio": 1.3401360544217686
+  },
+  "training_max": {
+    "sample_LDR": 941.0,
+    "ambient_LDR": 165.0,
+    "reflectance_ratio": 5.742331288343558
+  },
+  "split": "specimen_id grouped 75/25",
+  "warning": "Synthetic-data metrics are software checks only, not real-world performance."
+}

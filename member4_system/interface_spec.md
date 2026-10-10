@@ -50,9 +50,9 @@ The sensor layer computes and packages the following numerical features:
 
 ## 3. Host-to-Controller Protocol (Satyam ↔ Ajitesh)
 
-Communication between the Python host application (Satyam) and the microcontroller/firmware simulator (Ajitesh) uses a **JSON-Lines (NDJSON)** framing format over USB virtual serial (or direct memory in software simulation mode).
+Communication between the Python host application (Satyam) and the microcontroller/firmware simulator (Ajitesh) uses **JSON Lines (NDJSON)** over USB virtual serial. Each UTF-8 JSON object occupies exactly one line and ends with a newline. The application serial reader accepts measurement messages only; it does not parse comma-separated sensor values. This is the authoritative format for the software prototype.
 
-### 3.1 Measurement Request (Controller / Simulator → Host)
+### 3.1 Measurement Message (Controller / Simulator → Host)
 
 Dispatched by the microcontroller when a specimen is positioned in the optical chamber:
 
@@ -61,6 +61,8 @@ Dispatched by the microcontroller when a specimen is positioned in the optical c
 ```
 
 ### 3.2 Classification Decision (Host → Controller / Simulator)
+
+The decision message is the planned response schema. The current `application/serial_reader.py` is a receive-only measurement bridge and does not yet transmit this response back to the controller. That round-trip behavior remains future integration work.
 
 Returned by the host Python application after running inference through Kuldeep's model:
 
@@ -108,3 +110,18 @@ The `DecisionValidator` module enforces the following strict invariant checks:
 - [ ] **Kuldeep (ML Lead):** Verify feature keys in `SensorRecord.to_model_features()` and specify final model input vector format.
 - [ ] **Satyam (App Lead):** Implement async serial reader with request/response ID matching matching `DecisionRequest`/`DecisionResponse` schemas.
 - [ ] **Ajitesh (Member 4):** Provide simulation fixtures and test harness for team integration testing prior to hardware availability.
+
+
+## 6. Serial Reader Behavior (Implemented Software Contract)
+
+- Encoding: UTF-8.
+- Framing: one JSON object per line (NDJSON), newline-terminated.
+- Required fields: `type="measurement"`, non-empty `request_id`, `sample_LDR`, and `ambient_LDR`.
+- Optional field: `reference_value`. Sensor values must be finite numeric values. ADC-range and ambient-light validation is performed by the application validation layer.
+- A timeout with no complete line is reported and the bridge continues waiting.
+- Malformed JSON, invalid message type, missing required fields, invalid numeric values, and decode errors are ignored with a diagnostic message.
+- Serial open/read failures are reported as communication errors.
+- Baud rate defaults to 115200 and read timeout defaults to 2 seconds; these are software defaults, not physical UART verification.
+- This bridge currently receives measurements and invokes the model. It does not yet send decision messages to firmware.
+
+**Pending team approval:** confirm the request/response round-trip, exact firmware message fields, confidence policy, and final physical bin mapping before hardware integration.

@@ -24,13 +24,22 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from reflectsort_member4.schemas import (
-    DEFAULT_ADC_RESOLUTION_BITS,
-    DEFAULT_MAX_ADC_COUNT,
-    InvalidNumericValueError,
-    SensorRecord,
-    ValidationError,
-)
+try:
+    from .schemas import (
+        DEFAULT_ADC_RESOLUTION_BITS,
+        DEFAULT_MAX_ADC_COUNT,
+        InvalidNumericValueError,
+        SensorRecord,
+        ValidationError,
+    )
+except ImportError:
+    from reflectsort_member4.schemas import (
+        DEFAULT_ADC_RESOLUTION_BITS,
+        DEFAULT_MAX_ADC_COUNT,
+        InvalidNumericValueError,
+        SensorRecord,
+        ValidationError,
+    )
 
 
 @dataclass
@@ -75,6 +84,27 @@ DEMO_FIXTURE_PROFILES: Dict[str, SyntheticShadeProfile] = {
         nominal_ambient_adc=850.0,
         nominal_reference_adc=2400.0,
         description="Demo fixture simulating empty tray baseline (negligible additional reflectance)",
+    ),
+    "SIM_DARK": SyntheticShadeProfile(
+        profile_name="SIM_DARK",
+        nominal_sample_adc=280.0,
+        nominal_ambient_adc=148.0,
+        nominal_reference_adc=900.0,
+        description="Simulated dark grain shade within Member 2 ML model training boundaries",
+    ),
+    "SIM_MEDIUM": SyntheticShadeProfile(
+        profile_name="SIM_MEDIUM",
+        nominal_sample_adc=510.0,
+        nominal_ambient_adc=148.0,
+        nominal_reference_adc=900.0,
+        description="Simulated medium grain shade within Member 2 ML model training boundaries",
+    ),
+    "SIM_LIGHT": SyntheticShadeProfile(
+        profile_name="SIM_LIGHT",
+        nominal_sample_adc=780.0,
+        nominal_ambient_adc=148.0,
+        nominal_reference_adc=900.0,
+        description="Simulated light grain shade within Member 2 ML model training boundaries",
     ),
 }
 

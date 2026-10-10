@@ -1,76 +1,184 @@
-# ReflectSort Integration Review Package — Member 2 (Kuldeep)
+# ReflectSort — Explainable Optical Mini-Sorting Cell
 
-This package is a reproducible **software integration/demo** for the Seed/Grain Shade Prototype. It is **not hardware validated**. The included model is trained on explicitly simulated readings.
+**Project ID:** `PROJECT-12-VARIANT-06`  
+**Course:** Machine Learning – Embedded Systems Design (ML-ESD)  
+**Team:** `ML-ESD-TEAM-117`  
+**Status:** Integrated Software-First Prototype (Phase 1 Complete)
 
-## 1. Reproduce training
+---
 
-Use Python 3.10+ (same Python environment for training and running). From this folder:
+## 1. Project Objective & Disclaimer
 
-```bat
-py -m pip install -r requirements.txt
-py generate_demo_data.py
-py train_model.py --data data/demo_data_simulated.csv
+ReflectSort is a software-first optical mini-sorting cell prototype designed to classify grain and seed surface reflectance shades using photodiode/LDR sensor inputs and a trained machine learning model. The software pipeline validates sensor inputs against microcontroller ADC limits, performs shade classification, verifies decisions against a multi-rule safety gate, and simulates the physical sorting actuation of a multi-bin diverter mechanism.
+
+> [!IMPORTANT]
+> **Prototype Classification Disclaimer:**  
+> This prototype is strictly an optical surface reflectance shade classifier. It does **not** evaluate grain purity, food safety, biological contamination, moisture, seed viability, or nutritional content.
+
+---
+
+## 2. Team Ownership & Subsystem Architecture
+
+The integrated repository preserves clear separation of ownership across all team members:
+
+| Team Member | Role & Ownership | Subsystem Directory | Core Deliverables |
+|---|---|---|---|
+| **Kuldeep Singh** | Member 2 — ML & Dataset | [`ml/`](ml) | Synthetic dataset generator, training pipeline (`train_model.py`), approved model bundle (`shade_model.joblib`), evaluation reports. |
+| **Satyam Rai** | Member 3 — Python Application | [`application/`](application) | Tkinter GUI, CLI runner, ADC input validation, batch CSV classifier, serial bridge, prediction audit logger. |
+| **Ajitesh Karan** | Member 4 — Architecture, Sim & Gate | [`member4_system/`](member4_system) | System architecture, sensor simulation, 8-rule decision safety gate, diverter actuator physics model, test suite. |
+| **Satya Nayak** | Team Lead — Integration & Delivery | [`reports/`](reports), [`shared/`](shared) | Authoritative interface contract, unified runner (`run_reflectsort.py`), integration test harness, final reports. |
+
+---
+
+## 3. System Architecture & Data Flow
+
+```
++-----------------------------------------------------------------------------------------+
+|                                      ReflectSort                                        |
++-----------------------------------------------------------------------------------------+
+|                                                                                         |
+|  [Optical Sensor / Simulator]                                                           |
+|       |                                                                                 |
+|       | 12-bit ADC (sample_LDR, ambient_LDR, ref_value)                                 |
+|       v                                                                                 |
+|  [Input Validation & Feature Extraction]                                                |
+|       | - Range checks [0, 4095], ambient > 0                                           |
+|       | - 3-Feature Contract: [sample_LDR, ambient_LDR, sample/ambient ratio]           |
+|       v                                                                                 |
+|  [ML Inference Engine (Member 2 Model)]                                                 |
+|       | - StandardScaler Preprocessing                                                  |
+|       | - RandomForestClassifier (150 trees, seed=117)                                  |
+|       | - Class output: Dark / Medium / Light                                           |
+|       v                                                                                 |
+|  [Bin Mapping & Confidence Policy]                                                      |
+|       | - Dark -> BIN_A | Medium -> BIN_B | Light -> BIN_C                               |
+|       | - Low confidence (< 60%) / Out-of-bounds -> HOLD                                |
+|       v                                                                                 |
+|  [Member 4 Decision Validator Safety Gate]                                              |
+|       | - Checks request ID match, timestamp monotonicity, 2.0s timeout, replay filter  |
+|       v                                                                                 |
+|  [Actuator Simulator Diverter / Hardware Chute]                                         |
+|       | - BIN_A (45°), BIN_B (90°), BIN_C (135°), HOLD / REJECT (90° / 180°)            |
+|       v                                                                                 |
+|  [Audit Logging & Display] (CSV Log + GUI History)                                      |
++-----------------------------------------------------------------------------------------+
 ```
 
-`generate_demo_data.py` uses NumPy RNG seed 117 and creates 100 simulated specimen IDs per class, 3 repeat readings per specimen (900 rows total). It samples an ambient reading in 130..165 ADC counts and synthetic sample/ambient ratios from these bands: Dark 1.45..2.35, Medium 2.65..3.75, Light 4.10..5.65, with small random noise. These bands were invented for exercising the pipeline; they are **not measurements or calibrated physical shade thresholds**. Training splits by `specimen_id` to avoid putting repeat readings of one synthetic specimen in both partitions.
+---
 
-The training script fits `StandardScaler` + `RandomForestClassifier` (`n_estimators=150`, `class_weight='balanced'`, `random_state=117`) inside a scikit-learn Pipeline, saves `shade_model.joblib`, and writes metrics to `outputs/`. Re-run the commands to reproduce the model and results. Metrics only describe this synthetic distribution and must not be reported as real-world accuracy.
+## 4. Quickstart & Usage Instructions
 
-## 2. Model interface
-
-- Artifact: `shade_model.joblib` (joblib dictionary with `pipeline`, `features`, `classes`, `training_min`, `training_max`, and metadata).
-- Exact ordered features: `sample_LDR`, `ambient_LDR`, `reflectance_ratio` where `reflectance_ratio = sample_LDR / ambient_LDR`.
-- The saved pipeline includes `StandardScaler`; do not scale inputs separately.
-- Random Forest supports `predict_proba`; the demo uses maximum class probability with a 0.60 minimum-confidence threshold.
-- Model labels: `Dark`, `Light`, `Medium`.
-- Proposed demo mapping: `Dark -> BIN_A`, `Medium -> BIN_B`, `Light -> BIN_C`; invalid/out-of-range/low-confidence -> `HOLD`. Confirm bin arrangement with the hardware/firmware owner before actuation.
-- `reference_value` may be accepted by the demo for interface compatibility but is logged only and is **not a model feature**.
-
-## 3. Actual training feature ranges in the bundled model
-
-These ranges are derived from the synthetic training partition. The app's guard checks every model feature against these bounds:
-
-- `sample_LDR`: 181..941
-- `ambient_LDR`: 130..165
-- `reflectance_ratio`: 1.3401..5.7423
-
-Do not treat these as approved ADC calibration limits. The separate electrical ADC input limit in the current GUI is 0..4095 and must be confirmed against the actual board configuration.
-
-## 4. Example and safety CSV
-
-`data/test_readings_expected.csv` contains 4 representative in-range cases with expected bin outputs and 4 invalid/out-of-range cases expected to return HOLD. It is a software test fixture, not physical sensor data. Run:
-
-```bat
-py shade_demo.py --csv data/test_readings_expected.csv
+### A. Environment Setup
+```bash
+cd ReflectSort_Integrated
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip
+python3 -m pip install -r requirements.txt
 ```
 
-The app prints actual results and appends to `prediction_log.csv`. `expected_output` and `case_type` are for human comparison; they are ignored as model features.
-
-## 5. Run app and tests
-
-```bat
-py shade_demo.py
-py -m unittest discover -s tests -v
+### B. System Diagnostics
+```bash
+python3 run_reflectsort.py --check
 ```
 
-## 6. Real sensor collection protocol (required before performance claims)
+### C. Single-Reading CLI Prediction
+```bash
+python3 run_reflectsort.py --cli 510 150 900
+```
+- Argument 1: Sample LDR reading (ADC counts)
+- Argument 2: Ambient LDR reading (ADC counts)
+- Argument 3 (Optional): Reference LDR baseline count
 
-1. Confirm board model, ADC resolution/reference voltage, sensor divider wiring and whether a higher ADC code means brighter or darker. Never assume direction from the LDR alone.
-2. Fix LED current/brightness, sensor distance, optical tunnel, sample orientation and integration time. Record ambient/reference measurements and any lighting/position changes.
-3. Use unique `specimen_id` for each physical seed/grain; record multiple `run_id` repeats per specimen. Label shade categories using an agreed, documented reference procedure before measuring; do not label based on model output.
-4. Record raw ADC values unchanged. Keep the data dictionary and calibration conditions. Do not merge repeated readings from one specimen across train/test splits.
-5. Collect specimens across all agreed classes and multiple sessions/positions. Hold out whole specimens (and ideally a later session) for evaluation. Report per-class precision/recall, macro-F1 and confusion matrix; report unknown/reject behaviour separately.
-6. Retrain on real labelled readings, review confusions and threshold policy, then run the official acceptance tests. Do not claim real-world accuracy until this is completed.
+### D. Batch CSV Classification
+```bash
+python3 run_reflectsort.py --csv application/data/sample_readings.csv
+```
 
-## 7. Integration confirmations still required
+### E. End-to-End Closed-Loop Simulation
+```bash
+python3 run_reflectsort.py --sim 5
+```
+Simulates 5 specimens through optical acquisition, ML inference, safety gate validation, and mechanical diverter actuation.
 
-- **Satyam (software demo):** confirm the app consumes exactly the 3 ordered features above, loads this bundle (not a dummy model), maps labels as agreed, and uses the 0.60 confidence threshold / HOLD policy.
-- **Ajitesh (firmware/hardware):** confirm board ADC range and scaling, COM port, serial baud rate, message framing/terminator, command response/timeout, and actual bin mapping. `serial_reader.py` currently documents a proposed newline-terminated comma-separated reading at 115200 baud; this is not confirmed hardware protocol. No physical actuation is performed by this Python package.
+### F. Interactive Graphical User Interface
+```bash
+python3 run_reflectsort.py --gui
+```
 
-## Environment and reports
+### G. Run Automated Test Suite
+```bash
+python3 -m pytest -v
+```
 
-The bundled artifact was loaded and tested with Python 3.13.5, scikit-learn 1.8.0, NumPy 2.3.5, pandas 2.2.3, joblib 1.5.3, and Matplotlib 3.10.8. `requirements.txt` pins these versions and includes pyserial 3.5 for optional serial-reader use. See `outputs/training_evaluation_report.md` for the concise report and `outputs/sample_predictions.csv` for actual outputs on the provided fixture.
+---
 
-## Honest status
+## 5. Repository Structure
 
-Included automated tests validate software behavior on known simulated inputs. No real seed/grain measurements, physical sensor calibration, STM32 communication, servo motion, or real-world accuracy results are claimed.
+```text
+ReflectSort_Integrated/
+├── README.md                          # Top-level project guide
+├── requirements.txt                   # Unified dependency specification
+├── pyproject.toml                     # Packaging and pytest configuration
+├── .gitignore                         # Clean version control exclusions
+├── run_reflectsort.py                 # Top-level master runner
+│
+├── ml/                                # Member 2 (Kuldeep Singh)
+│   ├── README.md                      # ML documentation and training instructions
+│   ├── train_model.py                 # Model training pipeline
+│   ├── generate_demo_data.py          # Synthetic dataset generator
+│   ├── dataset_template.csv           # Labelled CSV template
+│   ├── model/
+│   │   └── shade_model.joblib         # Approved model artifact
+│   ├── data/
+│   │   ├── demo_data_simulated.csv    # 900 synthetic training rows
+│   │   └── test_readings_expected.csv # Verification reference readings
+│   └── outputs/                       # Evaluation reports, confusion matrix, metrics
+│
+├── application/                       # Member 3 (Satyam Rai)
+│   ├── README.md                      # Application manual and GUI instructions
+│   ├── shade_demo.py                  # Tkinter GUI and CLI application
+│   ├── serial_reader.py               # Optional UART / serial communication bridge
+│   ├── prediction_log.csv             # Execution audit log
+│   └── data/
+│       └── sample_readings.csv        # Batch verification CSV
+│
+├── member4_system/                    # Member 4 (Ajitesh Karan)
+│   ├── README.md                      # Embedded architecture & simulation documentation
+│   ├── interface_spec.md              # Detailed schema specification
+│   ├── hardware_plan.md               # Hardware bill of materials and wiring
+│   ├── firmware_design.md             # Future STM32 bare-metal / HAL design
+│   ├── system_architecture.mmd        # Architecture diagram
+│   ├── test_plan.md                   # Formal testing specification
+│   ├── src/reflectsort_member4/       # Core modules (schemas, simulator, validator, actuator)
+│   ├── examples/run_simulation.py     # 7-scenario simulation runner
+│   └── tests/                         # Subsystem unit and regression test suite
+│
+├── shared/                            # Shared Contracts & Configurations
+│   ├── interface_contract.md          # Authoritative system interface contract
+│   └── configuration.py               # System constants, ADC limits, and mapping rules
+│
+├── tests/                             # Unified Integration Test Suite
+│   ├── test_ml_integration.py         # ML model and pipeline integration tests
+│   ├── test_application_integration.py# Application validation and batch tests
+│   └── test_end_to_end.py             # End-to-end multi-layer pipeline tests
+│
+└── reports/                           # Project Reports & Documentation
+    ├── ReflectSort_Final_Report.md    # Comprehensive master integration report
+    ├── RUN_INSTRUCTIONS.md            # Detailed execution manual
+    ├── HARDWARE_PENDING.md            # Physical hardware pending checklist
+    ├── TEST_RESULTS.md                # Verification test results summary
+    └── TEAM_CONTRIBUTIONS.md          # Member ownership & contribution breakdown
+```
+
+---
+
+## 6. Future Hardware Roadmap
+
+Phase 2 will interface the software pipeline with physical hardware:
+- **MCU:** STM32 NUCLEO-F446RE (ARM Cortex-M4 @ 180 MHz)
+- **Optical Sensors:** Dual LDR voltage divider circuits with white LED illumination chamber
+- **Diverter:** TowerPro SG90 micro servo PWM control (50 Hz, 1.0–2.0 ms pulse width)
+- **Communication:** USB-UART VCP at 115200 baud with NDJSON message framing
+
+See [`reports/HARDWARE_PENDING.md`](reports/HARDWARE_PENDING.md) for the complete hardware implementation plan.

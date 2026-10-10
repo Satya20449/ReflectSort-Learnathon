@@ -29,13 +29,22 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Optional, Set, Union
 
-from reflectsort_member4.schemas import (
-    DecisionResponse,
-    InvalidNumericValueError,
-    MalformedMessageError,
-    SortingDecision,
-    ValidationError,
-)
+try:
+    from .schemas import (
+        DecisionResponse,
+        InvalidNumericValueError,
+        MalformedMessageError,
+        SortingDecision,
+        ValidationError,
+    )
+except ImportError:
+    from reflectsort_member4.schemas import (
+        DecisionResponse,
+        InvalidNumericValueError,
+        MalformedMessageError,
+        SortingDecision,
+        ValidationError,
+    )
 
 # Default timing & policy constants
 DEFAULT_MAX_RESPONSE_LATENCY_SECONDS: float = 2.0
@@ -127,10 +136,19 @@ class DecisionValidator:
             clock: Optional injectable time provider for deterministic testing
         """
         self.config = config or DecisionValidatorConfig()
-        self.config.validate()
-        self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._clock: Callable[[], datetime] = clock or (lambda: datetime.now(timezone.utc))
         # Bounded FIFO/LRU dictionary mapping request_id -> processed_timestamp
         self._processed_request_history: OrderedDict[str, float] = OrderedDict()
+
+    @property
+    def clock(self) -> Callable[[], datetime]:
+        """Return the current clock callable."""
+        return self._clock
+
+    @clock.setter
+    def clock(self, clock_fn: Callable[[], datetime]) -> None:
+        """Inject a custom clock callable for deterministic testing."""
+        self._clock = clock_fn
 
     def reset_session(self) -> None:
         """Clear session memory (e.g. replay history cache)."""
@@ -195,10 +213,11 @@ class DecisionValidator:
                     error_code="ERR_MALFORMED_JSON",
                     evaluated_at=eval_time_str,
                 )
-        elif isinstance(response, DecisionResponse):
+        elif isinstance(response, DecisionResponse) or (hasattr(response, "request_id") and hasattr(response, "label") and hasattr(response, "timestamp")):
             resp_obj = response
             try:
-                resp_obj.validate()
+                if hasattr(resp_obj, "validate"):
+                    resp_obj.validate()
             except Exception as e:
                 return ValidationResult(
                     is_valid=False,
@@ -300,19 +319,35 @@ class DecisionValidator:
             if request_timestamp is not None:
                 try:
                     req_dt = self._parse_timestamp_to_utc(request_timestamp)
-                    latency = (resp_dt - req_dt).total_seconds()
-                    if latency < 0:
+                    req_future_drift = (req_dt - now).total_seconds()
+                    if req_future_drift > self.config.max_future_clock_drift_seconds:
                         return ValidationResult(
                             is_valid=False,
                             validated_action=SortingDecision.HOLD,
                             request_id=req_id,
-                            reason=f"Temporal violation: response timestamp predates request timestamp ({latency:.3f}s)",
+                            reason=f"Temporal violation: request timestamp is future-dated by {req_future_drift:.3f}s (max drift: {self.config.max_future_clock_drift_seconds}s)",
+                            error_code="ERR_FUTURE_DATED_TIMESTAMP",
+                            evaluated_at=eval_time_str,
+                            original_label=label,
+                            confidence=confidence,
+                            latency_seconds=req_future_drift,
+                        )
+
+                    resp_latency = (resp_dt - req_dt).total_seconds()
+                    if resp_latency < 0:
+                        return ValidationResult(
+                            is_valid=False,
+                            validated_action=SortingDecision.HOLD,
+                            request_id=req_id,
+                            reason=f"Temporal violation: response timestamp predates request timestamp ({resp_latency:.3f}s)",
                             error_code="ERR_CLOCK_SKEW_PREDATED",
                             evaluated_at=eval_time_str,
                             original_label=label,
                             confidence=confidence,
-                            latency_seconds=latency,
+                            latency_seconds=resp_latency,
                         )
+                    elapsed_since_request = (now - req_dt).total_seconds()
+                    latency = max(resp_latency, elapsed_since_request)
                 except Exception as e:
                     return ValidationResult(
                         is_valid=False,

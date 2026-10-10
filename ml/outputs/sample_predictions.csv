@@ -1,0 +1,9 @@
+sample_ldr,ambient_ldr,reference_value,expected_output,actual_output,confidence,match,note
+240,150,150,BIN_A,BIN_A,1.00,TRUE,shade=Dark; sample/ambient=1.6000. SIMULATED-data model; validate on real readings
+450,150,150,BIN_B,BIN_B,1.00,TRUE,shade=Medium; sample/ambient=3.0000. SIMULATED-data model; validate on real readings
+750,150,150,BIN_C,BIN_C,1.00,TRUE,shade=Light; sample/ambient=5.0000. SIMULATED-data model; validate on real readings
+510,150,150,BIN_B,BIN_B,1.00,TRUE,shade=Medium; sample/ambient=3.4000. SIMULATED-data model; validate on real readings
+1200,150,150,HOLD,HOLD,0.00,TRUE,"sample_LDR=1200.0000 outside model's simulated training range [181.0000, 941.0000]"
+300,0,150,HOLD,HOLD,0.00,TRUE,ambient_ldr must be greater than zero
+-5,150,150,HOLD,HOLD,0.00,TRUE,sample_ldr must be an integer in 0..4095
+500,5000,150,HOLD,HOLD,0.00,TRUE,ambient_ldr must be an integer in 0..4095
