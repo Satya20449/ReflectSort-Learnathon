@@ -1,0 +1,4 @@
+scikit-learn
+pandas
+joblib
+pyserial   # only needed for serial_reader.py (when the board is ready)
