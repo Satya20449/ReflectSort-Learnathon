@@ -24,13 +24,22 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from reflectsort_member4.decision_validator import ValidationResult
-from reflectsort_member4.schemas import (
-    ActuatorEvent,
-    ActuatorLimitError,
-    SortingDecision,
-    ValidationError,
-)
+try:
+    from .decision_validator import ValidationResult
+    from .schemas import (
+        ActuatorEvent,
+        ActuatorLimitError,
+        SortingDecision,
+        ValidationError,
+    )
+except ImportError:
+    from reflectsort_member4.decision_validator import ValidationResult
+    from reflectsort_member4.schemas import (
+        ActuatorEvent,
+        ActuatorLimitError,
+        SortingDecision,
+        ValidationError,
+    )
 
 # Standard hobby servo PWM defaults (50Hz / 20ms period)
 DEFAULT_PWM_PERIOD_MS: float = 20.0

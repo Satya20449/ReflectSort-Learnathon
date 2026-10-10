@@ -1,0 +1,9 @@
+sample_ldr,ambient_ldr,reference_value,expected_output,case_type
+240,150,150,BIN_A,in-range simulated Dark representative
+450,150,150,BIN_B,in-range simulated Medium representative
+750,150,150,BIN_C,in-range simulated Light representative
+510,150,150,BIN_B,in-range simulated Medium representative
+1200,150,150,HOLD,out-of-training-range sample value
+300,0,150,HOLD,invalid zero ambient
+-5,150,150,HOLD,invalid negative sample
+500,5000,150,HOLD,out-of-training-range ambient and ratio

@@ -52,7 +52,10 @@ def test_simulation_main_direct_call(capsys):
     """
     Test that importing and executing main() from run_simulation runs cleanly.
     """
-    from examples.run_simulation import main
+    try:
+        from member4_system.examples.run_simulation import main
+    except ImportError:
+        from examples.run_simulation import main
 
     main()
     captured = capsys.readouterr()
@@ -64,7 +67,10 @@ def test_simulation_scenarios_logic():
     """
     Verify core logic tested across all 7 scenarios in run_simulation.
     """
-    from examples.run_simulation import run_scenario
+    try:
+        from member4_system.examples.run_simulation import run_scenario
+    except ImportError:
+        from examples.run_simulation import run_scenario
 
     sensor_sim = SensorSimulator()
     validator = DecisionValidator(
@@ -108,4 +114,23 @@ def test_simulation_scenarios_logic():
     last_event = actuator.get_history()[-1]
     assert last_event.status == "REJECTED"
     assert last_event.target_angle_deg == 90.0
+    assert actuator.current_state == "SAFETY_BLOCKED_HOME"
+
+    # Scenario 5: Response timeout (> 2.0s) -> ERR_RESPONSE_EXPIRED
+    run_scenario(
+        scenario_num=5,
+        scenario_title="Response Timeout",
+        sensor_sim=sensor_sim,
+        validator=validator,
+        actuator=actuator,
+        specimen_id="REG-005",
+        profile_name="LIGHT_GRAIN",
+        proposed_label="BIN_A",
+        confidence=0.98,
+        simulate_delay_seconds=2.85,
+    )
+    last_event = actuator.get_history()[-1]
+    assert last_event.status == "REJECTED"
+    assert last_event.target_angle_deg == 90.0
+    assert "expired" in last_event.reason.lower()
     assert actuator.current_state == "SAFETY_BLOCKED_HOME"

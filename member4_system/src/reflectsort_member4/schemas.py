@@ -235,6 +235,7 @@ class SensorRecord:
             "differential_LDR": round(diff, 3),
             "contrast_ratio": round(contrast, 5),
             "ambient_ratio": round(amb_ratio, 5),
+            "reflectance_ratio": round(amb_ratio, 5),
         }
         return self.derived_features
 
@@ -285,7 +286,7 @@ class SensorRecord:
     def to_model_features(self) -> Dict[str, float]:
         """
         Extract numerical features formatted for Kuldeep's ML classification pipeline.
-        Note: Exact feature set and ordering are subject to agreement with ML member (Kuldeep).
+        Includes all standard and derived features.
         """
         features: Dict[str, float] = {
             "sample_LDR": self.sample_LDR,
@@ -294,7 +295,22 @@ class SensorRecord:
         }
         if self.derived_features:
             features.update(self.derived_features)
+        else:
+            self.compute_standard_derived_features()
+            features.update(self.derived_features)
         return features
+
+    def to_approved_ml_features(self) -> Dict[str, float]:
+        """
+        Extract strictly the 3 ordered features expected by Member 2's model:
+        ['sample_LDR', 'ambient_LDR', 'reflectance_ratio'].
+        """
+        safe_ambient = max(self.ambient_LDR, NUMERICAL_EPSILON)
+        return {
+            "sample_LDR": self.sample_LDR,
+            "ambient_LDR": self.ambient_LDR,
+            "reflectance_ratio": self.sample_LDR / safe_ambient,
+        }
 
 
 # ============================================================================

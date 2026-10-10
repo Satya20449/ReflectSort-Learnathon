@@ -81,11 +81,23 @@ def run_scenario(
 ) -> None:
     print(f"--- [Scenario {scenario_num}]: {scenario_title} ---")
 
+    # Establish logically consistent timestamps using validator's clock
+    now = validator.clock() if hasattr(validator, "clock") else datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    else:
+        now = now.astimezone(timezone.utc)
+
+    # The optical acquisition and request dispatch occurred in the past by simulate_delay_seconds
+    req_dt = now - timedelta(seconds=simulate_delay_seconds)
+    req_ts = req_dt.isoformat()
+
     # Step 1: Simulate Optical Sensor Acquisition
     record = sensor_sim.generate_reading(
         specimen_id=specimen_id,
         run_id="DEMO-RUN-2026",
         profile_name=profile_name,
+        timestamp=req_ts,
     )
     voltages = record.to_voltages(vref=3.30)
     print(f"  [Sensor Acquisition] Specimen: {record.specimen_id} | Profile Fixture: {profile_name}")
@@ -107,8 +119,8 @@ def run_scenario(
 
     # Step 3: Simulate Host / ML Model Response
     resp_req_id = "REQ-CORRUPTED-999" if force_mismatched_id else req_id
-    req_dt = datetime.fromisoformat(record.timestamp.replace("Z", "+00:00"))
-    resp_dt = req_dt + timedelta(seconds=simulate_delay_seconds)
+    # Response timestamp matches arrival time (req_dt + elapsed delay = now)
+    resp_dt = now
 
     conf_str = f"{confidence:.2%}" if confidence is not None else "None (Omitted)"
     print(f"\n  [Host ML Decision Input] (Supplied demonstration decision):")
