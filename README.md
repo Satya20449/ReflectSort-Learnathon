@@ -1,320 +1,76 @@
-# ReflectSort-Learnathon
-Seed/Grain Shade Prototype using sensors, machine learning, and STM32
+# ReflectSort Integration Review Package — Member 2 (Kuldeep)
 
-# ReflectSort — Explainable Optical Mini-Sorting Cell
+This package is a reproducible **software integration/demo** for the Seed/Grain Shade Prototype. It is **not hardware validated**. The included model is trained on explicitly simulated readings.
 
-**Project:** Seed/Grain Shade Prototype  
-**Project ID:** PROJECT-12-VARIANT-06  
-**Team:** 4 Members  
-**Development Environment:** STM32CubeMX, STM32CubeIDE, Python, PyCharm, Git and GitHub  
-**Current Development Mode:** Software-first; hardware availability to be confirmed
+## 1. Reproduce training
 
----
+Use Python 3.10+ (same Python environment for training and running). From this folder:
 
-## 1. Project Overview
-
-ReflectSort is a mini optical sorting prototype designed to classify clean seed or grain samples into broad shade groups using reflected-light measurements.
-
-The system is intended to combine optical sensing, embedded control, machine learning and a simple sorting mechanism. If a sample cannot be classified confidently, the system should hold it for review rather than automatically assigning an uncertain category.
-
-The project will be developed incrementally, beginning with software and system design. The implementation will be adapted to the hardware actually provided during the Learnathon.
-
-**Important:** Shade classification is the scope of this prototype. The system does not claim to determine seed quality, freshness, purity, nutritional value or food safety.
-
-## 2. Problem Statement
-
-Manual sorting of seeds or grains by visible shade can be inconsistent. Lighting conditions, sample positioning and differences in reflected light may affect how samples are classified.
-
-We aim to develop a small, explainable prototype that measures reflected light under controlled conditions and classifies samples into predefined shade groups, with a mechanism for handling uncertain predictions.
-
-## 3. Proposed Solution
-
-The proposed system will:
-
-1. Illuminate a sample using a white LED.
-2. Measure reflected light using an LDR-based sensor arrangement.
-3. Read and process sensor measurements using a compatible microcontroller, if hardware is available.
-4. Pass suitable measurements to a machine-learning classifier.
-5. Produce one of four outputs: `BIN_A`, `BIN_B`, `BIN_C` or `HOLD`.
-6. Use a servo-controlled flap or another permitted mechanism to direct samples to collection bins if the physical sorting mechanism can be implemented.
-
-If hardware is unavailable, the team will develop a software demonstration using clearly labelled sample or simulated inputs. Such a demonstration will not be represented as a physically tested sorting machine.
-
-## 4. System Architecture
-
-### 4.1 Proposed Hardware Flow
-
-Sample → Controlled LED illumination → LDR sensor readings → STM32 microcontroller → Measurement processing and classification interface → Sorting decision → Servo mechanism → Collection bin or HOLD.
-
-The precise division of processing between the microcontroller and Python application will be determined during implementation and according to the Learnathon requirements.
-
-### 4.2 Software-First Flow
-
-Sample or simulated readings → Data preparation → Machine-learning model → Predicted category → Python demonstration → Result and test logging.
-
-The software-first flow allows development to proceed while the availability of physical components is uncertain.
-
-## 5. Components and Tools
-
-### Hardware — subject to availability
-
-- STM32 NUCLEO-H753ZI or another permitted board, potentially NUCLEO-F446RE.
-- LDR sensor or sensors and suitable voltage-divider components.
-- White LED and appropriate current-limiting resistor.
-- Servo motor and compatible power supply.
-- Connecting wires, sample tray and a light-shielding enclosure or optical tunnel.
-- Clean, safe seed/grain samples or permitted inert replicas.
-- Collection bins or a simple sorting guide.
-
-The final component list, pin mapping, power requirements and firmware configuration must be verified against the board and components actually provided.
-
-### Software
-
-- STM32CubeMX — microcontroller peripheral and pin configuration.
-- STM32CubeIDE — embedded C development and firmware build.
-- Python and PyCharm — data preparation, ML development and the demonstration application.
-- pandas and NumPy — data processing.
-- scikit-learn — machine-learning model development.
-- matplotlib — visualisation of measurements and test results.
-- Git and GitHub — version control, collaboration and project documentation.
-
-Exact library versions and additional dependencies will be documented when implementation begins.
-
-## 6. Shade Categories and Data Format
-
-The prototype will use the following output labels:
-
-| Label | Meaning |
-|---|---|
-| `BIN_A` | First configured shade group |
-| `BIN_B` | Second configured shade group |
-| `BIN_C` | Third configured shade group |
-| `HOLD` | Uncertain, invalid or unsupported input requiring review |
-
-The precise shade boundaries will be established from suitable labelled samples and sensor calibration. The labels must not be assumed to represent fixed brightness ranges until these have been defined and tested.
-
-### Proposed dataset fields
-
-- `sample_id` — unique sample identifier.
-- `ldr_reading_1` — reading from the first sensor, if available.
-- `ldr_reading_2` — reading from the second sensor, if available.
-- `reference_reading` — ambient-light reference, if implemented.
-- `shade_label` — verified category assigned to the sample.
-
-The final schema may change depending on the available sensors. Simulated measurements must be explicitly labelled as simulated and kept distinguishable from genuine sensor measurements.
-
-## 7. Team Responsibilities
-
-### Member 1 — Team Lead and Integration
-
-**Primary responsibility:** Coordinate the project and integrate the work of all members.
-
-Tasks:
-- Maintain the shared GitHub repository and project structure.
-- Track progress, dependencies, issues and review deadlines.
-- Coordinate interfaces between the ML model, Python application and embedded design.
-- Review code integration and ensure the application can be run reproducibly.
-- Maintain project documentation and record verified implementation status.
-- Prepare review evidence, presentation materials and the final demonstration.
-- Coordinate testing and help resolve integration problems.
-
-Deliverables:
-- Shared repository and project documentation.
-- Integration checklist and progress tracking.
-- Tested combined demonstration, where feasible.
-- Review and final presentation materials.
-
-### Member 2 — Machine Learning and Data
-
-**Primary responsibility:** Develop and evaluate the shade-classification model.
-
-Tasks:
-- Define and document the dataset format.
-- Collect genuine readings if sensors are available; otherwise prepare clearly labelled sample or simulated data.
-- Clean and prepare the dataset.
-- Train a suitable baseline classifier using scikit-learn.
-- Evaluate it using held-out test data and suitable metrics.
-- Investigate confidence handling and the `HOLD` decision.
-- Document the model's limitations and instructions for use.
-
-Deliverables:
-- Dataset and its description.
-- Training script.
-- Saved model, if model persistence is used.
-- Evaluation results and instructions for integrating the model.
-
-### Member 3 — Python Application and Demonstration
-
-**Primary responsibility:** Build the software interface that displays shade predictions.
-
-Tasks:
-- Create a simple command-line or graphical demonstration.
-- Accept supported sensor measurements or clearly labelled simulated inputs.
-- Load and use Member 2's model.
-- Validate input values and handle invalid or unsupported inputs.
-- Display the predicted category and a useful explanation of the result.
-- Record demonstration results and document how to run the application.
-- Coordinate changes to the model interface with Member 2.
-
-Deliverables:
-- Python application.
-- Dependency list and run instructions.
-- Demonstration examples and screenshots.
-- Input-validation and error-handling evidence.
-
-### Member 4 — Embedded System and Hardware Design
-
-**Primary responsibility:** Design the sensor interface and proposed embedded control.
-
-Tasks:
-- Document the system block diagram and expected data flow.
-- Inspect the actual board and components when provided.
-- Plan the LDR input circuit, LED control and servo interface.
-- Configure supported peripherals using STM32CubeMX.
-- Develop or prepare firmware in STM32CubeIDE.
-- Document board-specific pin mapping, voltage limits and power requirements.
-- Verify hardware behaviour only when the required physical components are available.
-- Coordinate the embedded measurement format with Members 2 and 3.
-
-Deliverables:
-- System architecture and hardware block diagram.
-- Proposed wiring and pin-mapping documentation.
-- Firmware source and build instructions, if implemented.
-- Hardware test results or a documented list of unverified hardware functions.
-
-## 8. Collaboration and GitHub Workflow
-
-All members will collaborate through the shared repository:
-
-https://github.com/Satya20449/ReflectSort-Learnathon
-
-### Working rules
-
-1. Accept the repository invitation before attempting to contribute.
-2. Clone the repository once on each member's laptop.
-3. Pull the latest changes before starting a new task.
-4. Work primarily on files assigned to your role.
-5. Check changes using `git status`.
-6. Stage and commit changes with clear messages.
-7. Push commits to the agreed branch or create a feature branch and pull request when the team uses that workflow.
-8. Communicate before modifying shared files or changing interfaces.
-9. Never commit passwords, access tokens or private credentials.
-
-### Common Git commands
-
-```bash
-git pull origin main
-git status
-git add <your-file-or-folder>
-git commit -m "Describe your change"
-git push
+```bat
+py -m pip install -r requirements.txt
+py generate_demo_data.py
+py train_model.py --data data/demo_data_simulated.csv
 ```
 
-New contributors should follow the repository's current branch policy and avoid force-pushing shared branches.
+`generate_demo_data.py` uses NumPy RNG seed 117 and creates 100 simulated specimen IDs per class, 3 repeat readings per specimen (900 rows total). It samples an ambient reading in 130..165 ADC counts and synthetic sample/ambient ratios from these bands: Dark 1.45..2.35, Medium 2.65..3.75, Light 4.10..5.65, with small random noise. These bands were invented for exercising the pipeline; they are **not measurements or calibrated physical shade thresholds**. Training splits by `specimen_id` to avoid putting repeat readings of one synthetic specimen in both partitions.
 
-## 9. Project Folder Structure
+The training script fits `StandardScaler` + `RandomForestClassifier` (`n_estimators=150`, `class_weight='balanced'`, `random_state=117`) inside a scikit-learn Pipeline, saves `shade_model.joblib`, and writes metrics to `outputs/`. Re-run the commands to reproduce the model and results. Metrics only describe this synthetic distribution and must not be reported as real-world accuracy.
 
-```text
-ReflectSort_Learnathon/
-├── README.md
-├── docs/
-│   ├── architecture.md
-│   ├── requirements.md
-│   └── test-plan.md
-├── ml-model/
-│   ├── data/
-│   ├── train_model.py
-│   └── model-evaluation.md
-├── python-demo/
-│   ├── app.py
-│   └── requirements.txt
-├── stm32-firmware/
-│   ├── Core/
-│   ├── Drivers/
-│   └── README.md
-├── tests/
-│   ├── test-cases.md
-│   └── results/
-└── presentation/
-    ├── review-evidence/
-    └── final-presentation/
+## 2. Model interface
+
+- Artifact: `shade_model.joblib` (joblib dictionary with `pipeline`, `features`, `classes`, `training_min`, `training_max`, and metadata).
+- Exact ordered features: `sample_LDR`, `ambient_LDR`, `reflectance_ratio` where `reflectance_ratio = sample_LDR / ambient_LDR`.
+- The saved pipeline includes `StandardScaler`; do not scale inputs separately.
+- Random Forest supports `predict_proba`; the demo uses maximum class probability with a 0.60 minimum-confidence threshold.
+- Model labels: `Dark`, `Light`, `Medium`.
+- Proposed demo mapping: `Dark -> BIN_A`, `Medium -> BIN_B`, `Light -> BIN_C`; invalid/out-of-range/low-confidence -> `HOLD`. Confirm bin arrangement with the hardware/firmware owner before actuation.
+- `reference_value` may be accepted by the demo for interface compatibility but is logged only and is **not a model feature**.
+
+## 3. Actual training feature ranges in the bundled model
+
+These ranges are derived from the synthetic training partition. The app's guard checks every model feature against these bounds:
+
+- `sample_LDR`: 181..941
+- `ambient_LDR`: 130..165
+- `reflectance_ratio`: 1.3401..5.7423
+
+Do not treat these as approved ADC calibration limits. The separate electrical ADC input limit in the current GUI is 0..4095 and must be confirmed against the actual board configuration.
+
+## 4. Example and safety CSV
+
+`data/test_readings_expected.csv` contains 4 representative in-range cases with expected bin outputs and 4 invalid/out-of-range cases expected to return HOLD. It is a software test fixture, not physical sensor data. Run:
+
+```bat
+py shade_demo.py --csv data/test_readings_expected.csv
 ```
 
-This is the intended organisation. Files and subfolders will be added as work is implemented; empty directories are not stored by Git.
+The app prints actual results and appends to `prediction_log.csv`. `expected_output` and `case_type` are for human comparison; they are ignored as model features.
 
-## 10. Testing and Validation Plan
+## 5. Run app and tests
 
-The team intends to verify the following:
+```bat
+py shade_demo.py
+py -m unittest discover -s tests -v
+```
 
-- Input data has the expected format and contains valid values.
-- The ML model produces the documented category labels.
-- The `HOLD` path handles uncertain or invalid predictions appropriately.
-- The Python application loads the correct model and displays results.
-- The embedded firmware builds successfully for the actual target board.
-- Sensor readings are repeatable under controlled lighting.
-- The physical sorting mechanism directs samples to the intended destination, if hardware is available.
-- Results distinguish simulated tests from real sensor and hardware tests.
+## 6. Real sensor collection protocol (required before performance claims)
 
-Metrics, thresholds and acceptance criteria will be finalised when the dataset, model and hardware configuration are known.
+1. Confirm board model, ADC resolution/reference voltage, sensor divider wiring and whether a higher ADC code means brighter or darker. Never assume direction from the LDR alone.
+2. Fix LED current/brightness, sensor distance, optical tunnel, sample orientation and integration time. Record ambient/reference measurements and any lighting/position changes.
+3. Use unique `specimen_id` for each physical seed/grain; record multiple `run_id` repeats per specimen. Label shade categories using an agreed, documented reference procedure before measuring; do not label based on model output.
+4. Record raw ADC values unchanged. Keep the data dictionary and calibration conditions. Do not merge repeated readings from one specimen across train/test splits.
+5. Collect specimens across all agreed classes and multiple sessions/positions. Hold out whole specimens (and ideally a later session) for evaluation. Report per-class precision/recall, macro-F1 and confusion matrix; report unknown/reject behaviour separately.
+6. Retrain on real labelled readings, review confusions and threshold policy, then run the official acceptance tests. Do not claim real-world accuracy until this is completed.
 
-## 11. Implementation Status
+## 7. Integration confirmations still required
 
-The status below reflects the project setup documented at the start of implementation. Update it only when the corresponding work has actually been completed and verified.
+- **Satyam (software demo):** confirm the app consumes exactly the 3 ordered features above, loads this bundle (not a dummy model), maps labels as agreed, and uses the 0.60 confidence threshold / HOLD policy.
+- **Ajitesh (firmware/hardware):** confirm board ADC range and scaling, COM port, serial baud rate, message framing/terminator, command response/timeout, and actual bin mapping. `serial_reader.py` currently documents a proposed newline-terminated comma-separated reading at 115200 baud; this is not confirmed hardware protocol. No physical actuation is performed by this Python package.
 
-| Item | Status |
-|---|---|
-| GitHub repository created | Completed |
-| Local Git repository connected to GitHub | Completed |
-| Initial project folders created | Completed |
-| Four-member responsibilities defined | Planned and assigned |
-| Hardware availability confirmed | Pending |
-| Dataset created and verified | Pending |
-| ML model trained and evaluated | Pending |
-| Python application implemented | Pending |
-| STM32 firmware configured and built | Pending |
-| Physical sorting mechanism tested | Pending |
-| Integrated end-to-end demonstration | Pending |
-| Review evidence and final presentation | Pending |
+## Environment and reports
 
-## 12. Known Constraints and Risks
+The bundled artifact was loaded and tested with Python 3.13.5, scikit-learn 1.8.0, NumPy 2.3.5, pandas 2.2.3, joblib 1.5.3, and Matplotlib 3.10.8. `requirements.txt` pins these versions and includes pyserial 3.5 for optional serial-reader use. See `outputs/training_evaluation_report.md` for the concise report and `outputs/sample_predictions.csv` for actual outputs on the provided fixture.
 
-- Hardware availability and the final STM32 board model are not yet confirmed.
-- Firmware and pin assignments may require adaptation to the supplied board.
-- LDR readings depend on lighting, geometry, sensor characteristics and calibration.
-- Simulated measurements cannot establish physical sensor accuracy.
-- A model trained on synthetic or insufficiently representative data may not generalise to real samples.
-- The prototype classifies shade only and must not make unsupported agricultural quality or safety claims.
-- Uncertain predictions should be held for review rather than forced into a shade group.
+## Honest status
 
-## 13. Learnathon Milestones
-
-The planned Learnathon window is 6:00 PM to 12:00 PM the following day. The exact number and timing of reviews must follow the organisers' instructions.
-
-The team will prioritise:
-
-1. Confirm requirements, available components and review criteria.
-2. Finalise the architecture and shared input/output format.
-3. Develop the ML model and Python demonstration in parallel.
-4. Prepare the embedded design and adapt to the available board.
-5. Integrate, test and document the implementation.
-6. Present verified results, limitations and future improvements.
-
-## 14. Future Improvements
-
-Potential future work includes:
-- Calibrating measurements with real samples.
-- Improving shade-group separation and uncertainty handling.
-- Integrating the embedded controller with the software pipeline.
-- Testing the physical sorting mechanism.
-- Adding reproducible data collection and result logging.
-- Improving enclosure design and sample positioning.
-
-## 15. Team and Acknowledgements
-
-This project is developed by a four-member team as part of the ReflectSort Seed/Grain Shade Prototype Learnathon.
-
-Individual names, GitHub handles, and completed contributions should be added after the team confirms them.
-
----
-
-**Project principle:** Build incrementally, test honestly, document clearly, and adapt the implementation to the actual requirements and available components.
+Included automated tests validate software behavior on known simulated inputs. No real seed/grain measurements, physical sensor calibration, STM32 communication, servo motion, or real-world accuracy results are claimed.
