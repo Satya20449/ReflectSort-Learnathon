@@ -1,0 +1,102 @@
+flowchart TD
+    %% =========================================================================
+    %% ReflectSort End-to-End System Architecture & Team Boundaries Diagram
+    %% Project: ReflectSort (PROJECT-12-VARIANT-06) | Team: ML-ESD-TEAM-117
+    %% Member 4 Architecture Specification — Ajitesh Karan (2500032236)
+    %% =========================================================================
+
+    subgraph Hardware_Layer ["1. Proposed Hardware Setup & Sensing (Ajitesh - Planning)"]
+        direction TB
+        LED_Source["Diffused White LED Illuminator\n(Constant Current / PWM Controlled)"]
+        Sample_Tray["Optical Measurement Chamber\n(Enclosed Tube / Specimen Slot)"]
+        Seed_Sample["Seed / Grain Specimen\n(Varying Surface Shade / Reflectance)"]
+        
+        Sample_LDR["Sample LDR Sensor\n(Reflected Light Signal)"]
+        Ambient_LDR["Ambient / Reference LDR\n(Baseline & Background Calibration)"]
+        
+        LED_Source -->|Controlled Illumination| Seed_Sample
+        Seed_Sample -->|Diffuse Reflectance| Sample_LDR
+        Sample_Tray -->|Stray Background Light| Ambient_LDR
+    end
+
+    subgraph STM32_Microcontroller ["2. STM32 NUCLEO-F446RE Controller (Proposed Firmware Architecture)"]
+        direction TB
+        ADC_Module["12-bit Multi-Channel ADC\n(PA0: Sample LDR, PA1: Ambient LDR)"]
+        Filtering["Oversampling & Digital Averaging\n(Noise Reduction / Baseline Subtraction)"]
+        Packetizer["Message Framing & Request ID Generator\n(JSON-Lines / Serial Packetizer)"]
+        
+        UART_TX["USART2 / ST-LINK VCP (TX)\n(Send Sensor Features to Host)"]
+        UART_RX["USART2 / ST-LINK VCP (RX)\n(Receive Classification Decision)"]
+        
+        Firmware_Validator["Hardware Safety & Decision Validator\n(Enforces Timeout, Schema, Whitelist & Range)"]
+        PWM_Driver["TIM2 / TIM3 PWM Actuator Driver\n(50 Hz, 1.0ms - 2.0ms Pulse Width)"]
+        
+        Sample_LDR -->|Analog Voltage 0-3.3V| ADC_Module
+        Ambient_LDR -->|Analog Voltage 0-3.3V| ADC_Module
+        ADC_Module --> Filtering
+        Filtering --> Packetizer
+        Packetizer --> UART_TX
+        UART_RX --> Firmware_Validator
+        Firmware_Validator -->|Validated Command| PWM_Driver
+    end
+
+    subgraph Simulation_Harness ["Member 4 Software Simulation Subsystem (Ajitesh - Implemented)"]
+        direction TB
+        Sim_Sensor["SensorSimulator\n(Synthetic 12-bit ADC Records & Noise Profiles)"]
+        Sim_Schema["Schemas & Type Safety\n(SensorRecord, DecisionRequest, DecisionResponse)"]
+        Sim_Validator["DecisionValidator\n(Response Expiry, Request ID Match, Permitted Labels)"]
+        Sim_Actuator["ActuatorSimulator\n(Angular Mapping, Travel Envelope, Audit Logger)"]
+        
+        Sim_Sensor -->|Synthetic SensorRecord| Sim_Schema
+        Sim_Schema -->|JSON Request| Sim_Validator
+        Sim_Validator -->|ValidationResult: EXECUTED / HELD / REJECTED| Sim_Actuator
+    end
+
+    subgraph Host_Python_Layer ["3. Host Application & Machine Learning Pipeline"]
+        direction TB
+        Main_App["Main Python Application (Satyam Rai)\n- GUI / CLI Dashboard\n- Serial Port Manager\n- Prediction Display"]
+        
+        ML_Model["Trained ML Classifier (Kuldeep Singh)\n- Feature Preprocessing\n- Shade Inference Model\n- Classification Confidence"]
+        
+        Integration_Core["Team Integration & Repo (Satya Nayak)\n- End-to-End Orchestration\n- Git Integration & Release Verification"]
+        
+        UART_TX -.->|Proposed USB Serial (115200 baud)| Main_App
+        Sim_Schema -.->|Software Interface Mode| Main_App
+        Main_App -->|Feature Vector| ML_Model
+        ML_Model -->|Predicted Label + Confidence| Main_App
+        Main_App -.->|Proposed USB Serial Response| UART_RX
+        Main_App -.->|Software Decision Response| Sim_Validator
+        Integration_Core --- Main_App
+    end
+
+    subgraph Actuation_Sorting ["4. Mechanical Sorting & Failsafe Diversion"]
+        direction TB
+        Diverter_Servo["Low-Torque Micro Servo (SG90/MG90S)\n(Angular Deflector Gate)"]
+        Bin_A["Bin A\n(Light Shade: ~45 deg)"]
+        Bin_B["Bin B\n(Medium Shade: ~90 deg)"]
+        Bin_C["Bin C\n(Dark Shade: ~135 deg)"]
+        Reject_Chute["Reject / Unknown Chute\n(Foreign Matter / Stale: ~165 deg)"]
+        Hold_Position["Neutral Hold / Fail-Safe\n(Zero Motion / 90 deg Default)"]
+        
+        PWM_Driver -->|PWM Duty Cycle| Diverter_Servo
+        Sim_Actuator -->|Simulated Angle & State| Diverter_Servo
+        Diverter_Servo --> Bin_A
+        Diverter_Servo --> Bin_B
+        Diverter_Servo --> Bin_C
+        Diverter_Servo --> Reject_Chute
+        Firmware_Validator -->|On Error / Timeout| Hold_Position
+        Sim_Validator -->|On Error / Timeout| Hold_Position
+    end
+
+    %% Styling & Class Definitions
+    classDef ajiteshStyle fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
+    classDef satyamStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+    classDef kuldeepStyle fill:#e8f5e9,stroke:#388e3c,stroke-width:2px;
+    classDef satyaStyle fill:#fff3e0,stroke:#f57c00,stroke-width:2px;
+    classDef simStyle fill:#e0f7fa,stroke:#0097a7,stroke-width:2px,stroke-dasharray: 5 5;
+
+    class Hardware_Layer,STM32_Microcontroller,Firmware_Validator,PWM_Driver,Actuator_Sorting,ADC_Module,Filtering,Packetizer ajiteshStyle;
+    class Simulation_Harness,Sim_Sensor,Sim_Schema,Sim_Validator,Sim_Actuator simStyle;
+    class Main_App satyamStyle;
+    class ML_Model kuldeepStyle;
+    class Integration_Core satyaStyle;
