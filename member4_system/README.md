@@ -35,7 +35,7 @@ member4_system/
 ├── interface_spec.md             # Inter-module data contracts across all 4 team members
 ├── hardware_plan.md              # STM32 NUCLEO-F446RE circuit schematics, BOM & pinouts
 ├── firmware_design.md            # 10-stage STM32 firmware pipeline, state machine & HAL C-code
-├── test_plan.md                  # Complete verification matrix (46 automated + 5 hardware tests)
+├── test_plan.md                  # Complete verification matrix (62 automated + 5 hardware tests)
 ├── system_architecture.mmd       # Mermaid diagram showing end-to-end flow & team ownership
 ├── src/
 │   └── reflectsort_member4/
@@ -54,7 +54,7 @@ member4_system/
 │   ├── test_actuator_simulator.py# Unit & integration tests for diverter motion, pulse widths & full pipeline
 │   └── test_simulation_regression.py # Regression tests for standalone demo execution & scenario logic
 └── results/
-    └── test_results.txt          # Real execution log from pytest (46 passed)
+    └── test_results.txt          # Real execution log from pytest (62 passed)
 ```
 
 ---
@@ -137,7 +137,7 @@ PYTHONPATH=src python3 examples/run_simulation.py
 
 ## 5. Running Automated Tests
 
-Run the complete 46-test automated verification suite:
+Run the complete 62-test automated verification suite:
 
 ```bash
 pytest -v

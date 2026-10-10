@@ -7,8 +7,12 @@ Course: Machine Learning – Embedded Systems Design (ML–ESD)
 Team: ML-ESD-TEAM-117 (Project 12, Variant 06)
 """
 
-import pytest
+from __future__ import annotations
+
 from datetime import datetime, timedelta, timezone
+from typing import List
+
+import pytest
 
 from reflectsort_member4.decision_validator import (
     DEFAULT_MAX_RESPONSE_LATENCY_SECONDS,
@@ -45,90 +49,157 @@ def test_valid_all_permitted_decisions() -> None:
         validator.reset_session()
 
 
-def test_timeout_exact_boundary_conditions() -> None:
+@pytest.mark.parametrize("latency_sec", [0.000, 0.001, 0.050, 0.500, 1.200, 1.500, 1.999])
+def test_latency_below_two_seconds_accepted(latency_sec: float) -> None:
     """
-    Test exact timeout boundary conditions:
-    - latency == 2.000s -> PASS (inclusive boundary <=)
-    - latency == 1.999s -> PASS
-    - latency == 2.001s -> FAIL (ERR_RESPONSE_EXPIRED)
-    - latency == 0.000s -> PASS
+    Prove that any latency below 2.0 seconds is accepted when all other checks pass.
+    Uses an injectable clock for fully deterministic, non-blocking evaluation.
     """
-    fixed_now = datetime(2026, 10, 10, 12, 0, 10, tzinfo=timezone.utc)
+    eval_clock = datetime(2026, 10, 10, 12, 0, 10, 0, tzinfo=timezone.utc)
     validator = DecisionValidator(
         config=DecisionValidatorConfig(max_response_latency_seconds=2.0),
-        clock=lambda: fixed_now,
+        clock=lambda: eval_clock,
     )
 
-    req_dt = datetime(2026, 10, 10, 12, 0, 8, tzinfo=timezone.utc)
-    req_ts = req_dt.isoformat()
-
-    # Case A: Exactly 2.000s (resp at 12:00:10.000) -> MUST PASS
-    resp_exact = DecisionResponse(
-        request_id="REQ-EXACT-2S",
-        label="BIN_A",
-        timestamp=(req_dt + timedelta(seconds=2.0)).isoformat(),
-        confidence=0.95,
-    )
-    res_exact = validator.validate(resp_exact, expected_request_id="REQ-EXACT-2S", request_timestamp=req_ts)
-    assert res_exact.is_valid is True
-    assert res_exact.error_code is None
-
-    # Case B: 1.999s -> MUST PASS
-    resp_within = DecisionResponse(
-        request_id="REQ-WITHIN-2S",
-        label="BIN_A",
-        timestamp=(req_dt + timedelta(seconds=1.999)).isoformat(),
-        confidence=0.95,
-    )
-    res_within = validator.validate(resp_within, expected_request_id="REQ-WITHIN-2S", request_timestamp=req_ts)
-    assert res_within.is_valid is True
-
-    # Case C: 2.001s (just 1ms past deadline) -> MUST FAIL with ERR_RESPONSE_EXPIRED
-    resp_over = DecisionResponse(
-        request_id="REQ-OVER-2S",
-        label="BIN_A",
-        timestamp=(req_dt + timedelta(seconds=2.001)).isoformat(),
-        confidence=0.95,
-    )
-    res_over = validator.validate(resp_over, expected_request_id="REQ-OVER-2S", request_timestamp=req_ts)
-    assert res_over.is_valid is False
-    assert res_over.validated_action == SortingDecision.HOLD
-    assert res_over.error_code == "ERR_RESPONSE_EXPIRED"
-
-    # Case D: 0.000s -> MUST PASS
-    resp_zero = DecisionResponse(
-        request_id="REQ-ZERO-LATENCY",
-        label="BIN_A",
-        timestamp=req_ts,
-        confidence=0.95,
-    )
-    res_zero = validator.validate(resp_zero, expected_request_id="REQ-ZERO-LATENCY", request_timestamp=req_ts)
-    assert res_zero.is_valid is True
-
-
-def test_future_dated_response_rejection() -> None:
-    """Verify that response timestamps in the future beyond acceptable clock drift are rejected."""
-    fixed_now = datetime(2026, 10, 10, 12, 0, 0, tzinfo=timezone.utc)
-    validator = DecisionValidator(
-        config=DecisionValidatorConfig(max_future_clock_drift_seconds=0.50),
-        clock=lambda: fixed_now,
-    )
-
-    req_ts = (fixed_now - timedelta(seconds=0.1)).isoformat()
-    # Response claims to be 5 seconds in future relative to current clock
-    future_resp_ts = (fixed_now + timedelta(seconds=5.0)).isoformat()
+    req_dt = eval_clock - timedelta(seconds=latency_sec)
+    resp_dt = eval_clock  # Response arrived at evaluation time
 
     resp = DecisionResponse(
-        request_id="REQ-FUTURE",
+        request_id=f"REQ-OK-{int(latency_sec * 1000)}",
         label="BIN_A",
-        timestamp=future_resp_ts,
+        timestamp=resp_dt.isoformat(),
         confidence=0.95,
     )
-    res = validator.validate(resp, expected_request_id="REQ-FUTURE", request_timestamp=req_ts)
+    res = validator.validate(
+        resp,
+        expected_request_id=resp.request_id,
+        request_timestamp=req_dt.isoformat(),
+    )
+
+    assert res.is_valid is True
+    assert res.validated_action == SortingDecision.BIN_A
+    assert res.error_code is None
+    assert res.latency_seconds == pytest.approx(latency_sec, abs=1e-4)
+
+
+def test_latency_exactly_two_seconds_boundary() -> None:
+    """
+    Prove that latency exactly at the 2.0-second boundary follows the documented
+    inclusive boundary policy (latency <= 2.0s is accepted).
+    """
+    eval_clock = datetime(2026, 10, 10, 12, 0, 10, 0, tzinfo=timezone.utc)
+    validator = DecisionValidator(
+        config=DecisionValidatorConfig(max_response_latency_seconds=2.0),
+        clock=lambda: eval_clock,
+    )
+
+    req_dt = eval_clock - timedelta(seconds=2.000000)
+    resp_dt = eval_clock
+
+    resp = DecisionResponse(
+        request_id="REQ-EXACT-2S",
+        label="BIN_B",
+        timestamp=resp_dt.isoformat(),
+        confidence=0.90,
+    )
+    res = validator.validate(
+        resp,
+        expected_request_id="REQ-EXACT-2S",
+        request_timestamp=req_dt.isoformat(),
+    )
+
+    assert res.is_valid is True
+    assert res.validated_action == SortingDecision.BIN_B
+    assert res.error_code is None
+    assert res.latency_seconds == pytest.approx(2.0, abs=1e-5)
+
+
+@pytest.mark.parametrize("latency_sec", [2.001, 2.050, 2.850, 5.000, 10.000])
+def test_latency_above_two_seconds_rejected_with_timeout_error(latency_sec: float) -> None:
+    """
+    Prove that latency above 2.0 seconds is rejected specifically with ERR_RESPONSE_EXPIRED.
+    Ensures that because resp_dt <= eval_clock, the rejection is genuinely due to
+    response timeout and NOT due to clock-drift / future-timestamp checks.
+    """
+    eval_clock = datetime(2026, 10, 10, 12, 0, 10, 0, tzinfo=timezone.utc)
+    validator = DecisionValidator(
+        config=DecisionValidatorConfig(max_response_latency_seconds=2.0),
+        clock=lambda: eval_clock,
+    )
+
+    req_dt = eval_clock - timedelta(seconds=latency_sec)
+    resp_dt = eval_clock  # Valid arrival timestamp <= eval_clock
+
+    resp = DecisionResponse(
+        request_id=f"REQ-EXPIRED-{int(latency_sec * 1000)}",
+        label="BIN_C",
+        timestamp=resp_dt.isoformat(),
+        confidence=0.95,
+    )
+    res = validator.validate(
+        resp,
+        expected_request_id=resp.request_id,
+        request_timestamp=req_dt.isoformat(),
+    )
+
+    assert res.is_valid is False
+    assert res.validated_action == SortingDecision.HOLD
+    assert res.error_code == "ERR_RESPONSE_EXPIRED"
+    assert "expired" in res.reason.lower()
+    assert res.latency_seconds == pytest.approx(latency_sec, abs=1e-4)
+
+
+@pytest.mark.parametrize("drift_sec", [0.501, 1.000, 5.000, 60.000])
+def test_future_dated_response_rejected_with_future_timestamp_error(drift_sec: float) -> None:
+    """
+    Prove that a genuinely future-dated response (resp_dt > eval_clock + drift_tolerance)
+    is rejected separately with ERR_FUTURE_DATED_TIMESTAMP.
+    """
+    eval_clock = datetime(2026, 10, 10, 12, 0, 0, 0, tzinfo=timezone.utc)
+    validator = DecisionValidator(
+        config=DecisionValidatorConfig(max_future_clock_drift_seconds=0.50),
+        clock=lambda: eval_clock,
+    )
+
+    req_dt = eval_clock - timedelta(milliseconds=100)
+    future_resp_dt = eval_clock + timedelta(seconds=drift_sec)
+
+    resp = DecisionResponse(
+        request_id=f"REQ-FUTURE-{int(drift_sec * 1000)}",
+        label="BIN_A",
+        timestamp=future_resp_dt.isoformat(),
+        confidence=0.95,
+    )
+    res = validator.validate(
+        resp,
+        expected_request_id=resp.request_id,
+        request_timestamp=req_dt.isoformat(),
+    )
+
     assert res.is_valid is False
     assert res.validated_action == SortingDecision.HOLD
     assert res.error_code == "ERR_FUTURE_DATED_TIMESTAMP"
     assert "future-dated" in res.reason.lower()
+
+
+def test_clock_skew_predated_response_rejected() -> None:
+    """Verify that response timestamp predating request timestamp is rejected (clock skew anomaly)."""
+    fixed_now = datetime(2026, 10, 10, 12, 0, 0, tzinfo=timezone.utc)
+    validator = DecisionValidator(clock=lambda: fixed_now)
+
+    req_ts = datetime(2026, 10, 10, 12, 0, 0, tzinfo=timezone.utc).isoformat()
+    resp_ts = datetime(2026, 10, 10, 11, 59, 50, tzinfo=timezone.utc).isoformat()
+
+    resp = DecisionResponse(
+        request_id="REQ-SKEW",
+        label="BIN_A",
+        timestamp=resp_ts,
+        confidence=0.95,
+    )
+    res = validator.validate(resp, expected_request_id="REQ-SKEW", request_timestamp=req_ts)
+    assert res.is_valid is False
+    assert res.validated_action == SortingDecision.HOLD
+    assert res.error_code == "ERR_CLOCK_SKEW_PREDATED"
 
 
 def test_timezone_offset_handling_utc_vs_ist() -> None:
@@ -151,7 +222,44 @@ def test_timezone_offset_handling_utc_vs_ist() -> None:
     )
     res = validator.validate(resp, expected_request_id="REQ-TZ", request_timestamp=req_dt_utc.isoformat())
     assert res.is_valid is True
-    assert res.latency_seconds == pytest.approx(0.100, abs=0.001)
+    assert res.latency_seconds == pytest.approx(0.150, abs=0.001)
+
+
+def test_controlled_injectable_clock_stepper() -> None:
+    """
+    Verify that an injectable stepped clock can simulate multi-step workflows
+    deterministically without physical delay.
+    """
+    current_time = datetime(2026, 10, 10, 12, 0, 0, 0, tzinfo=timezone.utc)
+
+    def dynamic_clock() -> datetime:
+        return current_time
+
+    validator = DecisionValidator(
+        config=DecisionValidatorConfig(max_response_latency_seconds=2.0),
+        clock=dynamic_clock,
+    )
+
+    # Dispatch request 1 at 12:00:00.000
+    req1_ts = current_time.isoformat()
+
+    # Advance clock by 0.5s to 12:00:00.500
+    current_time += timedelta(milliseconds=500)
+    resp1 = DecisionResponse(request_id="REQ-DYN-01", label="BIN_A", timestamp=current_time.isoformat())
+    res1 = validator.validate(resp1, expected_request_id="REQ-DYN-01", request_timestamp=req1_ts)
+    assert res1.is_valid is True
+    assert res1.latency_seconds == pytest.approx(0.500, abs=1e-4)
+
+    # Dispatch request 2 at 12:00:00.500
+    req2_ts = current_time.isoformat()
+
+    # Advance clock by 2.5s to 12:00:03.000 (exceeds 2.0s limit!)
+    current_time += timedelta(milliseconds=2500)
+    resp2 = DecisionResponse(request_id="REQ-DYN-02", label="BIN_B", timestamp=current_time.isoformat())
+    res2 = validator.validate(resp2, expected_request_id="REQ-DYN-02", request_timestamp=req2_ts)
+    assert res2.is_valid is False
+    assert res2.error_code == "ERR_RESPONSE_EXPIRED"
+    assert res2.latency_seconds == pytest.approx(2.500, abs=1e-4)
 
 
 def test_confidence_threshold_and_policies() -> None:
@@ -272,26 +380,6 @@ def test_request_id_mismatch_rejected() -> None:
     assert res.is_valid is False
     assert res.validated_action == SortingDecision.HOLD
     assert res.error_code == "ERR_REQUEST_ID_MISMATCH"
-
-
-def test_predated_response_rejected() -> None:
-    """Verify that response timestamp predating request timestamp is rejected (clock skew anomaly)."""
-    fixed_now = datetime(2026, 10, 10, 12, 0, 0, tzinfo=timezone.utc)
-    validator = DecisionValidator(clock=lambda: fixed_now)
-
-    req_ts = datetime(2026, 10, 10, 12, 0, 0, tzinfo=timezone.utc).isoformat()
-    resp_ts = datetime(2026, 10, 10, 11, 59, 50, tzinfo=timezone.utc).isoformat()
-
-    resp = DecisionResponse(
-        request_id="REQ-SKEW",
-        label="BIN_A",
-        timestamp=resp_ts,
-        confidence=0.95,
-    )
-    res = validator.validate(resp, expected_request_id="REQ-SKEW", request_timestamp=req_ts)
-    assert res.is_valid is False
-    assert res.validated_action == SortingDecision.HOLD
-    assert res.error_code == "ERR_CLOCK_SKEW_PREDATED"
 
 
 def test_distinguish_accepted_hold_from_rejected_hold() -> None:

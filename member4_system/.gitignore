@@ -1,6 +1,11 @@
 # ReflectSort Member 4 — Python & Workspace Git Ignore
 
-# Virtual environment
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Virtual environments
 .venv/
 venv/
 ENV/
@@ -30,6 +35,8 @@ wheels/
 
 # Testing & Coverage
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
 htmlcov/
 .tox/
