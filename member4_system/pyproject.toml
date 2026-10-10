@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reflectsort-member4"
+version = "1.0.0"
+description = "ReflectSort Member 4: System Architecture, Hardware Planning, Simulation, and Testing"
+readme = "README.md"
+authors = [
+    { name = "Ajitesh Karan", email = "2500032236@kluniversity.in" }
+]
+requires-python = ">=3.8"
+dependencies = [
+    "pytest>=7.0.0",
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+addopts = "-v --strict-markers"

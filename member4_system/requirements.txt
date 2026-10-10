@@ -1,0 +1,4 @@
+# ReflectSort Member 4 — Dependencies
+# Core modules use Python 3 Standard Library (dataclasses, enum, math, datetime, typing)
+# Testing framework:
+pytest>=8.0.0

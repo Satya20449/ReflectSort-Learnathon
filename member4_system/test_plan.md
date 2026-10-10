@@ -1,0 +1,82 @@
+# ReflectSort — Verification & Test Plan
+
+**Project:** ReflectSort — Sensor-Based Seed/Grain Shade Classification and Sorting Prototype  
+**Course:** Machine Learning – Embedded Systems Design (ML–ESD)  
+**Project Variant:** PROJECT-12-VARIANT-06 | **Team:** ML-ESD-TEAM-117  
+**Author:** Ajitesh Karan (2500032236) — Member 4 (Software Testing Engineer & System Design)  
+**Execution Environment:** macOS / Python 3.14 / pytest 9.1.1  
+**Actual Test Results:** Recorded in `results/test_results.txt` (46 Passed, 0 Failed)  
+
+---
+
+## 1. Test Strategy & Scope
+
+The ReflectSort Member 4 test harness validates data integrity, sensor simulation fidelity, decision safety gating, replay protection, and actuator state modeling using automated unit and integration tests.
+
+### Execution Boundaries:
+- **Automated Software Tests:** Executed via `pytest` without requiring physical microcontroller, serial hardware, or external network services.
+- **Physical Hardware Tests:** Formally documented with preconditions, procedures, and pass/fail criteria, designated as **PENDING_HARDWARE** until physical laboratory assembly.
+
+---
+
+## 2. Automated Software Test Matrix
+
+| Test ID | Test Name / Function | Objective & Scope | Input / Precondition | Expected Result | Actual Result | Status | Environment | Evidence Location |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **TC-SCH-01** | `test_valid_sensor_record_creation` | Verify instantiation and field types of valid `SensorRecord` | Valid specimen, 12-bit ADC counts, ISO timestamp | Instantiates without error; attributes match | Attributes match expected values | **PASS** | Simulation | `tests/test_schemas.py` |
+| **TC-SCH-02** | `test_derived_features_computation` | Verify differential LDR, contrast ratio, and ambient ratio calculation | `sample_LDR=2850`, `ambient_LDR=850`, `ref=2000` | `diff=2000.0`, `contrast=1.0000`, `amb_ratio=3.3529` | Derived features match formulas exactly | **PASS** | Simulation | `tests/test_schemas.py` |
+| **TC-SCH-03** | `test_derived_features_zero_and_near_zero_denominators` | Verify safe derived calculation when reference/ambient is zero or near zero | `ref=0.0`, `ref=1e-9`, `amb=0.0` | `contrast_ratio=0.0`, `ambient_ratio` finite, no ZeroDivisionError | Zero division guarded safely | **PASS** | Simulation | `tests/test_schemas.py` |
+| **TC-SCH-04** | `test_voltage_conversion_helper` | Verify 12-bit ADC to analog volts conversion | `4095` counts $\to 3.3\text{V}$, `2047.5` $\to 1.65\text{V}$, `0` $\to 0\text{V}$ | Accurate voltage dictionary returned | Exact matching voltages | **PASS** | Simulation | `tests/test_schemas.py` |
+| **TC-SCH-05** | `test_sensor_record_to_from_dict` | Verify lossless serialization / deserialization to JSON/dict | Populated `SensorRecord` with derived features | Restored record matches original instance exactly | Complete equality of all fields | **PASS** | Simulation | `tests/test_schemas.py` |
+| **TC-SCH-06** | `test_missing_fields_in_from_dict` | Verify detection of omitted required fields in dictionary | Dictionary missing `run_id`, `ambient_LDR` | Raises `MalformedMessageError` | `MalformedMessageError` raised | **PASS** | Simulation | `tests/test_schemas.py` |
+| **TC-SCH-07** | `test_invalid_adc_values[nan/inf/bounds]` | Verify rejection of NaN, +inf, -inf, negative, and out-of-range ADC counts | `sample_LDR` set to `nan`, `inf`, `-1.0`, `5000.0` | Raises `InvalidNumericValueError` | `InvalidNumericValueError` raised on each | **PASS** | Simulation | `tests/test_schemas.py` |
+| **TC-SCH-08** | `test_non_simulated_datasource_rejected` | Guard against false claims of physical data in software simulation | `data_source="physical_hardware_measured"` | Raises `ValidationError` (must be `"simulated"`) | `ValidationError` raised | **PASS** | Simulation | `tests/test_schemas.py` |
+| **TC-SCH-09** | `test_timezone_aware_timestamp_handling` | Verify timestamps with timezone offsets (+05:30) accepted | Valid ISO 8601 string with `+05:30` | Accepted and parsed without error | Parsed correctly | **PASS** | Simulation | `tests/test_schemas.py` |
+| **TC-SCH-10** | `test_invalid_timestamp_rejected` | Verify ISO 8601 formatting enforcement on timestamps | `timestamp="NOT_A_VALID_ISO_TIMESTAMP"` | Raises `MalformedMessageError` | `MalformedMessageError` raised | **PASS** | Simulation | `tests/test_schemas.py` |
+| **TC-SCH-11** | `test_decision_request_json_lines` | Verify `DecisionRequest` JSON-line export & parsing | Valid `DecisionRequest` and corrupt string | Exports `\n`-delimited JSON; raises on corrupt | JSON line matches | **PASS** | Simulation | `tests/test_schemas.py` |
+| **TC-SCH-12** | `test_decision_response_json_lines` | Verify `DecisionResponse` JSON-line export & parsing | Valid `DecisionResponse` and corrupt string | Exports `\n`-delimited JSON; raises on corrupt | JSON line matches | **PASS** | Simulation | `tests/test_schemas.py` |
+| **TC-SCH-13** | `test_actuator_event_serialization` | Verify `ActuatorEvent` serialization to and from dictionary | Populated `ActuatorEvent` instance | Restored object equals original; `is_simulated=True` | Matches original | **PASS** | Simulation | `tests/test_schemas.py` |
+| **TC-SIM-01** | `test_reproducible_output_with_fixed_seed` | Verify that identical seeds yield 100% reproducible readings | Two simulators initialized with `seed=42` | Generated `SensorRecord` instances are identical | Bit-for-bit identical outputs | **PASS** | Simulation | `tests/test_sensor_simulator.py` |
+| **TC-SIM-02** | `test_zero_noise_yields_nominal_fixture_values` | Verify nominal profile baselines when `noise_std_dev=0.0` | All demo profiles (`LIGHT`, `MEDIUM`, `DARK`, `EMPTY`) | Produced counts equal nominal profile values exactly | Exactly matches nominals | **PASS** | Simulation | `tests/test_sensor_simulator.py` |
+| **TC-SIM-03** | `test_all_demo_profiles_generate_valid_records` | Verify all profiles produce records inside $[0, 4095]$ range | Demo profiles with standard Gaussian noise | `0.0 <= counts <= 4095.0`, `data_source="simulated"` | Valid records generated | **PASS** | Simulation | `tests/test_sensor_simulator.py` |
+| **TC-SIM-04** | `test_generate_batch` | Verify batch generation count and specimen numbering | `count=10`, `prefix="GRAIN"` | Returns 10 records (`GRAIN-0001` to `GRAIN-0010`) | 10 valid sequential records returned | **PASS** | Simulation | `tests/test_sensor_simulator.py` |
+| **TC-SIM-05** | `test_invalid_batch_count` | Verify rejection of non-positive batch size | `count=0`, `count=-5` | Raises `ValidationError` | `ValidationError` raised | **PASS** | Simulation | `tests/test_sensor_simulator.py` |
+| **TC-SIM-06** | `test_invalid_simulator_config` | Verify rejection of inverted ADC limits or negative noise | `min_adc=5000, max_adc=1000`, `noise_std_dev=-10.0` | Raises `ValidationError` on `validate()` | `ValidationError` raised | **PASS** | Simulation | `tests/test_sensor_simulator.py` |
+| **TC-SIM-07** | `test_model_feature_export` | Verify `to_model_features()` outputs required ML dictionary | Generated `SensorRecord` instance | Contains `sample_LDR`, `ambient_LDR`, `reference_value`, `diff`, `contrast` | All feature keys present with valid floats | **PASS** | Simulation | `tests/test_sensor_simulator.py` |
+| **TC-VAL-01** | `test_valid_all_permitted_decisions` | Verify acceptance of all 5 permitted labels when on time | `BIN_A`, `BIN_B`, `BIN_C`, `REJECT_UNKNOWN`, `HOLD` | `is_valid=True`, `validated_action` matches label | All 5 pass with `is_valid=True` | **PASS** | Simulation | `tests/test_decision_validator.py` |
+| **TC-VAL-02** | `test_timeout_exact_boundary_conditions` | Verify exact boundary conditions ($2.000\text{s}$, $1.999\text{s}$, $2.001\text{s}$, $0.000\text{s}$) | Boundary latencies against $2.0\text{s}$ limit | $\le 2.0\text{s}$ passes, $> 2.0\text{s}$ fails `ERR_RESPONSE_EXPIRED` | Exact boundaries verified | **PASS** | Simulation | `tests/test_decision_validator.py` |
+| **TC-VAL-03** | `test_future_dated_response_rejection` | Verify rejection when response timestamp is $> 0.5\text{s}$ in future | Response claims $5.0\text{s}$ ahead of clock | `is_valid=False`, action `HOLD`, `ERR_FUTURE_DATED_TIMESTAMP` | Blocked with future-dated error | **PASS** | Simulation | `tests/test_decision_validator.py` |
+| **TC-VAL-04** | `test_timezone_offset_handling_utc_vs_ist` | Verify absolute comparison between UTC request and IST response | Request in UTC, Response in `+05:30` ($100\text{ms}$ later) | `is_valid=True`, latency accurately evaluated to $0.100\text{s}$ | Handled seamlessly | **PASS** | Simulation | `tests/test_decision_validator.py` |
+| **TC-VAL-05** | `test_confidence_threshold_and_policies` | Verify confidence threshold boundaries and require_confidence policy | `conf == 0.85` (pass), `conf < 0.85` (fail), missing confidence | Threshold $\ge$ passes, $<$ fails, missing handled per policy | Verified all policies | **PASS** | Simulation | `tests/test_decision_validator.py` |
+| **TC-VAL-06** | `test_replay_protection_blocks_duplicate_responses` | Verify replay attack protection for processed request IDs | Replaying identical `request_id` twice | First passes, second fails with `ERR_DUPLICATE_RESPONSE` | Duplicate blocked | **PASS** | Simulation | `tests/test_decision_validator.py` |
+| **TC-VAL-07** | `test_raw_json_string_and_corrupt_payload_handling` | Verify parsing of raw JSON string lines and corrupt fragments | Valid JSON line vs corrupt fragment | Valid parsed OK; corrupt fails `ERR_MALFORMED_JSON` | Safe error fallback | **PASS** | Simulation | `tests/test_decision_validator.py` |
+| **TC-VAL-08** | `test_request_id_mismatch_rejected` | Verify rejection of response with incorrect `request_id` | Expected `ACTIVE_REQ_001`, received `WRONG_ID_999` | `is_valid=False`, action `HOLD`, `ERR_REQUEST_ID_MISMATCH` | Blocked with mismatch error | **PASS** | Simulation | `tests/test_decision_validator.py` |
+| **TC-VAL-09** | `test_predated_response_rejected` | Verify rejection of negative latency / clock skew anomaly | Response timestamp claims $10\,\text{s}$ before request | `is_valid=False`, action `HOLD`, `ERR_CLOCK_SKEW_PREDATED` | Blocked with predated error | **PASS** | Simulation | `tests/test_decision_validator.py` |
+| **TC-VAL-10** | `test_distinguish_accepted_hold_from_rejected_hold` | Verify audit distinction between intentional HOLD and fallback HOLD | Valid `HOLD` response vs malformed message | Both yield `HOLD` action; valid has `is_valid=True`, malformed has `is_valid=False` + error code | Distinct audit logs produced | **PASS** | Simulation | `tests/test_decision_validator.py` |
+| **TC-ACT-01** | `test_actuator_initial_home_state` | Verify actuator initializes to neutral position ($90^\circ$, $1.5\text{ms}$) | Default `ActuatorSimulator` initialization | Angle $90.0^\circ$, state `"HOME_HOLD"`, pulse $1.500\text{ms}$ | Angle $90.0^\circ$ | **PASS** | Simulation | `tests/test_actuator_simulator.py` |
+| **TC-ACT-02** | `test_pulse_width_mapping` | Verify PWM pulse width conversion across travel envelope | Angles $0^\circ, 45^\circ, 90^\circ, 135^\circ, 180^\circ$ | $1.000\text{ms}, 1.250\text{ms}, 1.500\text{ms}, 1.750\text{ms}, 2.000\text{ms}$ | Exact pulse widths matched | **PASS** | Simulation | `tests/test_actuator_simulator.py` |
+| **TC-ACT-03** | `test_accepted_bin_actions_map_to_correct_angles` | Verify diverter angle mapping for `BIN_A`, `BIN_B`, `BIN_C` | Validated `BIN_A` ($45^\circ$), `BIN_C` ($135^\circ$) | Actuates to configured angles; status `"EXECUTED"` | Actuates to $45^\circ$ and $135^\circ$ | **PASS** | Simulation | `tests/test_actuator_simulator.py` |
+| **TC-ACT-04** | `test_reject_unknown_moves_to_reject_chute` | Verify diverter routing for `REJECT_UNKNOWN` | Validated `REJECT_UNKNOWN` | Actuates to $165.0^\circ$ (Reject chute); status `"EXECUTED"` | Actuates to $165.0^\circ$ | **PASS** | Simulation | `tests/test_actuator_simulator.py` |
+| **TC-ACT-05** | `test_hold_action_returns_to_home` | Verify return to neutral position on `HOLD` | Validated `HOLD` after moving to Bin A ($45^\circ$) | Returns to $90.0^\circ$; status `"HELD"` | Returns to $90.0^\circ$ | **PASS** | Simulation | `tests/test_actuator_simulator.py` |
+| **TC-ACT-06** | `test_invalid_validation_result_safe_state_consistency` | Verify state consistency on rejection (neutral return & state string update) | Rejected decision when previously deflected to $135^\circ$ | Under `RETURN_TO_HOME`: angle $90^\circ$, state `"SAFETY_BLOCKED_HOME"`, status `"REJECTED"` | State consistency verified | **PASS** | Simulation | `tests/test_actuator_simulator.py` |
+| **TC-ACT-07** | `test_actuator_config_travel_limits_validation` | Verify validation of actuator travel limits configuration | Inverted limits ($[100^\circ, 50^\circ]$), home angle $200^\circ$ | Raises `ValidationError` | `ValidationError` raised | **PASS** | Simulation | `tests/test_actuator_simulator.py` |
+| **TC-ACT-08** | `test_actuator_history_tracking_and_clearing` | Verify event logging and history clearing | Sequential actions executed, then `clear_history()` | Audit log records all events; clears to length 0 | History accumulated and cleared | **PASS** | Simulation | `tests/test_actuator_simulator.py` |
+| **TC-INT-01** | `test_full_software_simulation_pipeline_integration` | End-to-end integration test of complete 6-stage software pipeline | Sensor -> Schema -> Request -> Model Response -> Validator -> Actuator | Whole pipeline executes seamlessly with zero mock errors | Complete pipeline test passed | **PASS** | Simulation | `tests/test_actuator_simulator.py` |
+| **TC-DEMO-01** | `test_simulation_script_execution_via_subprocess` | Verify `run_simulation.py` standalone executable entry point | Subprocess run of `examples/run_simulation.py` | Exits with returncode 0, covers all 7 demo scenarios | Completed cleanly with 0 errors | **PASS** | Simulation | `tests/test_simulation_regression.py` |
+| **TC-DEMO-02** | `test_simulation_main_direct_call` | Verify direct import and invocation of `main()` | `from examples.run_simulation import main; main()` | Executes all scenarios without exception | Completed cleanly | **PASS** | Simulation | `tests/test_simulation_regression.py` |
+| **TC-DEMO-03** | `test_simulation_scenarios_logic` | Verify programmatic safety logic of scenario execution | Multi-scenario execution through `run_scenario()` helper | Actuator executes on valid decision, neutralizes on rejection | Assertions match expected states | **PASS** | Simulation | `tests/test_simulation_regression.py` |
+
+---
+
+## 3. Pending Physical Hardware Test Cases (Pre-Assembly Laboratory Protocol)
+
+> [!NOTE]
+> The following test cases require physical laboratory access with the STM32 NUCLEO-F446RE, multimeter, oscilloscope, and calibrated optical test chamber. They are marked **PENDING_HARDWARE**.
+
+| Test ID | Test Objective | Required Test Equipment | Input / Procedure | Expected Result | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **HW-ELEC-01** | ADC Input Voltage Clamping Verification | Digital Multimeter (DMM), Variable Illumination Source | Measure $V_{\text{ADC}}$ at PA0/PA1 under dark ($0\,\text{lux}$) and saturated light ($>10,000\,\text{lux}$) | $0.00\,\text{V} \le V_{\text{ADC}} \le 3.30\,\text{V}$ under all illumination levels | **PENDING_HARDWARE** |
+| **HW-ELEC-02** | Servo Power Isolation & Brownout Check | DMM, Oscilloscope on NUCLEO 3.3V Rail | Rapidly actuate SG90/MG90S servo from $0^\circ$ to $180^\circ$ while monitoring MCU VDD | Microcontroller 3.3V rail ripple $< 50\,\text{mV}$; zero brownout resets | **PENDING_HARDWARE** |
+| **HW-PWM-01** | TIM3 PWM Pulse Width Verification | 2-Channel Digital Oscilloscope | Probe STM32 PA6 output for each bin command | $50\,\text{Hz} \pm 0.5\%$, pulse widths: $1.25\,\text{ms}$ ($45^\circ$), $1.50\,\text{ms}$ ($90^\circ$), $1.75\,\text{ms}$ ($135^\circ$), $1.92\,\text{ms}$ ($165^\circ$) | **PENDING_HARDWARE** |
+| **HW-OPT-01** | Optical Tunnel Ambient Light Isolation | GL5528 LDR + DMM | Measure ambient LDR resistance with chamber closed vs open in bright lab | Ambient resistance ratio $> 50:1$ (ambient stray light adequately suppressed) | **PENDING_HARDWARE** |
+| **HW-COMM-01** | ST-LINK VCP UART Loopback & Throughput | PC Serial Terminal (115200 baud) | Transmit 100 consecutive measurement packets from STM32 | $100\%$ packet delivery, zero dropped bytes, zero framing errors | **PENDING_HARDWARE** |
