@@ -1,63 +1,55 @@
-# ReflectSort Run Instructions (macOS)
+# ReflectSort Run Instructions (Windows PowerShell)
 
-Run commands from the `ReflectSort_Integrated` directory.
+Run commands from the `ReflectSort_GitHub_Integration` project root.
 
-## 1. Create and activate an environment
+## 1. Activate the existing Python environment
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install --upgrade pip
-python3 -m pip install -r requirements.txt
-python3 -m pip install -e ".[dev]"
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+If you have not created the environment yet:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip install -e ".[dev]"
 ```
 
 ## 2. Run diagnostics
 
-```bash
-python3 run_reflectsort.py --check
+```powershell
+python .\application\shade_demo.py --check
 ```
 
-## 3. Run one CLI prediction
+## 3. Run tests
 
-```bash
-python3 run_reflectsort.py --cli 510 150 900
+```powershell
+python -m pytest -q
 ```
 
-Arguments are sample LDR ADC counts, ambient LDR ADC counts, and optional reference count.
+The latest verified test run passed all 102 tests. Run the tests again after changing files.
 
-## 4. Classify a CSV file
+## 4. Run the software demonstration
 
-```bash
-python3 run_reflectsort.py --csv application/data/sample_readings.csv
+Use the commands and arguments supported by the installed application:
+
+```powershell
+python .\application\shade_demo.py --help
 ```
 
-## 5. Run software simulation
+## 5. Serial bridge (optional)
 
-```bash
-python3 run_reflectsort.py --sim 2
+The serial bridge has been tested with mocked serial input only. Actual board and firmware validation is still pending. If testing on Windows, use the COM port assigned to your board, for example:
+
+```powershell
+python .\application\serial_reader.py COM3 --baud 115200 --timeout 2
 ```
 
-This uses simulated readings and actuator behavior. It does not control physical hardware.
+Replace `COM3` with the correct port. Confirm the actual script arguments with `--help` before use.
 
-## 6. Run tests
+## 6. Hardware status
 
-```bash
-python3 -m pytest -q
-```
-
-## 7. Optional serial bridge
-
-Install `pyserial` via the requirements and use the port shown by your operating system, for example:
-
-```bash
-python3 application/serial_reader.py /dev/ttyACM0 --baud 115200 --timeout 2
-```
-
-The bridge expects one UTF-8 NDJSON measurement object per line. Example:
-
-```json
-{"type":"measurement","request_id":"REQ-001","sample_LDR":1200,"ambient_LDR":800,"reference_value":900}
-```
-
-This serial bridge has been tested with mocked serial input only. Do not treat it as physically validated until tested with the actual firmware and board.
+The current verification covers software and simulation. Physical STM32, LDR sensor, and servo behavior has not been validated on assembled hardware. Do not interpret simulated results as real-world hardware performance.

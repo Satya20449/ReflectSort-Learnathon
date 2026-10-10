@@ -1,11 +1,11 @@
-# ReflectSort — Verification & Test Plan
+﻿# ReflectSort â€” Verification & Test Plan
 
-**Project:** ReflectSort — Sensor-Based Seed/Grain Shade Classification and Sorting Prototype  
-**Course:** Machine Learning – Embedded Systems Design (ML–ESD)  
+**Project:** ReflectSort â€” Sensor-Based Seed/Grain Shade Classification and Sorting Prototype  
+**Course:** Machine Learning â€“ Embedded Systems Design (MLâ€“ESD)  
 **Project Variant:** PROJECT-12-VARIANT-06 | **Team:** ML-ESD-TEAM-117  
-**Author:** Ajitesh Karan (2500032236) — Member 4 (Software Testing Engineer & System Design)  
+**Author:** Ajitesh Karan (2500032236) â€” Member 4 (Software Testing Engineer & System Design)  
 **Execution Environment:** macOS / Python 3.14 / pytest 9.1.1  
-**Actual Test Results:** Recorded in `results/test_results.txt` (62 Passed, 0 Failed)  
+**Actual Test Results:** Recorded in `results/test_results.txt` (102 Passed, 0 Failed)  
 
 ---
 
@@ -83,3 +83,4 @@ The ReflectSort Member 4 test harness validates data integrity, sensor simulatio
 | **HW-PWM-01** | TIM3 PWM Pulse Width Verification | 2-Channel Digital Oscilloscope | Probe STM32 PA6 output for each bin command | $50\,\text{Hz} \pm 0.5\%$, pulse widths: $1.25\,\text{ms}$ ($45^\circ$), $1.50\,\text{ms}$ ($90^\circ$), $1.75\,\text{ms}$ ($135^\circ$), $1.92\,\text{ms}$ ($165^\circ$) | **PENDING_HARDWARE** |
 | **HW-OPT-01** | Optical Tunnel Ambient Light Isolation | GL5528 LDR + DMM | Measure ambient LDR resistance with chamber closed vs open in bright lab | Ambient resistance ratio $> 50:1$ (ambient stray light adequately suppressed) | **PENDING_HARDWARE** |
 | **HW-COMM-01** | ST-LINK VCP UART Loopback & Throughput | PC Serial Terminal (115200 baud) | Transmit 100 consecutive measurement packets from STM32 | $100\%$ packet delivery, zero dropped bytes, zero framing errors | **PENDING_HARDWARE** |
+
